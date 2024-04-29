@@ -1,43 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:test_wifi_app/blu_controller.dart';
 import 'package:test_wifi_app/widgets/boottom_navigation_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
-class _ViewModel extends ChangeNotifier {
-  // Экземпляр FlutterBlue для работы с Bluetooth
-  final FlutterBlue _flutterBlue = FlutterBlue.instance;
-
-  // Список обнаруженных Bluetooth-устройств
-  List<String> _bluetoothDevices = [];
-  List<String> get bluetoothDevices => _bluetoothDevices;
-
-  // Флаг загрузки
-  final bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  Future<void> onScanButtonPressed() async {}
-}
-
 class NetworkConectionSreen extends StatelessWidget {
   const NetworkConectionSreen({super.key});
+  static Widget create() {
+    return ChangeNotifierProvider(
+      create: (_) => BleController(),
+      child: const NetworkConectionSreen(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => _ViewModel(),
-      child: const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _WifiConnectionsWidget(),
-              _BluetoothConnectionsWidget(),
-              ScanButtonWidget(),
-            ],
-          ),
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _WifiConnectionsWidget(),
+            _BluetoothConnectionsWidget(),
+            SizedBox(height: 10),
+            _ScanButton(),
+          ],
         ),
-        bottomNavigationBar: BoottomNavigationWidget(),
       ),
+      bottomNavigationBar: BoottomNavigationWidget(),
     );
   }
 }
@@ -84,64 +74,70 @@ class _BluetoothConnectionsWidget extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(10.0),
           ),
-          child: const BTDeviceWidget(),
+          child: const _BlueDeviceWidget(),
         ),
       ],
     );
   }
 }
 
-class ScanButtonWidget extends StatelessWidget {
-  const ScanButtonWidget({super.key});
+class _BlueDeviceWidget extends StatelessWidget {
+  const _BlueDeviceWidget();
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<_ViewModel>();
-
-    return ElevatedButton(
-      onPressed: viewModel.isLoading ? null : viewModel.onScanButtonPressed,
-      child: viewModel.isLoading
-          ? const CircularProgressIndicator(color: Colors.white)
-          : const Text('Scan'),
-    );
-  }
-}
-
-class BTDeviceWidget extends StatelessWidget {
-  const BTDeviceWidget({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final viewModel = context.watch<_ViewModel>();
-    final bluetoothDevices = viewModel.bluetoothDevices;
-
-    if (bluetoothDevices.isEmpty) {
-      return Center(
-        child: Image.asset(
-          'assets/images/noScann.png',
-          height: 150,
-          width: 150,
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: bluetoothDevices.length,
-      itemBuilder: (context, index) {
-        final device = bluetoothDevices[index];
-        return ListTile(
-          title: Text(device),
-          onTap: () {
-            final addressParts = device.split(', ');
-            if (addressParts.isNotEmpty) {
-              final address = addressParts.last; // Используем последний элемент
-              print(address);
+    return Consumer<BleController>(
+      builder: (context, controller, child) {
+        return StreamBuilder<List<ScanResult>>(
+          stream: controller.scanResults,
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+              return ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: snapshot.data!.length,
+                itemBuilder: (context, index) {
+                  final data = snapshot.data![index];
+                  final isConnected = controller.isConnected(data.device);
+                  return Card(
+                    color: isConnected ? const Color.fromARGB(255, 176, 245, 178) : null, // Цвет для подключенного устройства
+                    elevation: 2,
+                    child: ListTile(
+                      title: Text(data.device.name),
+                      subtitle: Text(data.device.id.id),
+                      trailing: Text(data.rssi.toString()),
+                      onTap: () {
+                        controller.connectToDevice(data.device);
+                      },
+                    ),
+                  );
+                },
+              );
             } else {
-              print('Address not found in device string');
+              return Center(
+                child: Image.asset(
+                  'assets/images/noScann.png',
+                  height: 150,
+                  width: 150,
+                ),
+              );
             }
           },
         );
       },
+    );
+  }
+}
+
+
+class _ScanButton extends StatelessWidget {
+  const _ScanButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () =>
+          Provider.of<BleController>(context, listen: false).scanDevices(),
+      child: const Text("SCAN"),
     );
   }
 }
