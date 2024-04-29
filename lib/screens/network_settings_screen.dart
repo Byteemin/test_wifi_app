@@ -12,9 +12,7 @@ class UserSettingsScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _WifiSettingsWidget(),
-            SizedBox(height: 30),
-            _BltetoothSettings(),
-            SizedBox(height: 30),
+            _BluetoothSettingsWidget(),
             _SaveButtonWidget(),
           ],
         ),
@@ -24,8 +22,20 @@ class UserSettingsScreen extends StatelessWidget {
   }
 }
 
-class _WifiSettingsWidget extends StatelessWidget {
+class _WifiSettingsWidget extends StatefulWidget {
   const _WifiSettingsWidget();
+
+  @override
+  _WifiSettingsWidgetState createState() => _WifiSettingsWidgetState();
+}
+
+class _WifiSettingsWidgetState extends State<_WifiSettingsWidget> {
+  bool _isWifiSettingsDataVisible = false;
+  void _toggleWifiSettingsDataVisibility() {
+    setState(() {
+      _isWifiSettingsDataVisible = !_isWifiSettingsDataVisible;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,24 +43,22 @@ class _WifiSettingsWidget extends StatelessWidget {
       children: [
         Row(
           children: [
-            IconButton(onPressed: () {}, icon: const Icon(Icons.star)),
+            IconButton(
+              onPressed: _toggleWifiSettingsDataVisibility,
+              icon: const Icon(Icons.star),
+            ),
             const Text('WI-FI Settings'),
           ],
         ),
-        const _WifiSettingsDataWidget(),
+        if (_isWifiSettingsDataVisible) const _WifiSettingsDataWidget(),
       ],
     );
   }
 }
 
-class _WifiSettingsDataWidget extends StatefulWidget {
+class _WifiSettingsDataWidget extends StatelessWidget {
   const _WifiSettingsDataWidget();
 
-  @override
-  State<_WifiSettingsDataWidget> createState() => _WifiSettingsDataWidgetState();
-}
-
-class _WifiSettingsDataWidgetState extends State<_WifiSettingsDataWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -80,8 +88,22 @@ class _WifiSettingsDataWidgetState extends State<_WifiSettingsDataWidget> {
   }
 }
 
-class _BltetoothSettings extends StatelessWidget {
-  const _BltetoothSettings();
+class _BluetoothSettingsWidget extends StatefulWidget {
+  const _BluetoothSettingsWidget();
+
+  @override
+  State<_BluetoothSettingsWidget> createState() =>
+      _BluetoothSettingsWidgetState();
+}
+
+class _BluetoothSettingsWidgetState extends State<_BluetoothSettingsWidget> {
+  bool _isBluetoothSettingsDataVisible = false;
+
+  void _toggleBluetoothSettingsDataVisibility() {
+    setState(() {
+      _isBluetoothSettingsDataVisible = !_isBluetoothSettingsDataVisible;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,26 +111,21 @@ class _BltetoothSettings extends StatelessWidget {
       children: [
         Row(
           children: [
-            IconButton(onPressed: () {}, icon: const Icon(Icons.star)),
+            IconButton(
+                onPressed: _toggleBluetoothSettingsDataVisibility,
+                icon: const Icon(Icons.star)),
             const Text('BT Settings'),
           ],
         ),
-        const _BluetoothSettingsDataWidget(),
+         if (_isBluetoothSettingsDataVisible) const _BluetoothSettingsDataWidget(),
       ],
     );
   }
 }
 
-class _BluetoothSettingsDataWidget extends StatefulWidget {
+class _BluetoothSettingsDataWidget extends StatelessWidget {
   const _BluetoothSettingsDataWidget();
 
-  @override
-  State<_BluetoothSettingsDataWidget> createState() =>
-      _BluetoothSettingsDataWidgetState();
-}
-
-class _BluetoothSettingsDataWidgetState
-    extends State<_BluetoothSettingsDataWidget> {
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -127,7 +144,6 @@ class _BluetoothSettingsDataWidgetState
               TextField(
                 decoration: InputDecoration(
                   labelText: 'Ssid',
-                  // border: OutlineInputBorder(),
                 ),
               ),
             ],
