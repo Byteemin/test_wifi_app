@@ -1,38 +1,58 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue/flutter_blue.dart';
-import 'package:get/get.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart';  // Импортируйте асинхронную библиотеку
 
-class BleController extends GetxController{
-
+class BleController extends ChangeNotifier {
   FlutterBlue ble = FlutterBlue.instance;
-  
-// This Function will help users to scan near by BLE devices and get the list of Bluetooth devices.
-  Future scanDevices() async{
-    if(await Permission.bluetoothScan.request().isGranted){
-      if(await Permission.bluetoothConnect.request().isGranted){
-        ble.startScan(timeout: const Duration(seconds: 15));
+  final StreamController<List<ScanResult>> _scanResultsController = StreamController<List<ScanResult>>.broadcast();
+  final Map<BluetoothDevice, bool> _connectedDevices = {};
+  Stream<List<ScanResult>> get scanResults => _scanResultsController.stream;
 
+  Future<void> scanDevices() async {
+    if (await Permission.bluetoothScan.request().isGranted) {
+      if (await Permission.bluetoothConnect.request().isGranted) {
+        ble.startScan(timeout: const Duration(seconds: 15));
+        ble.scanResults.listen((results) {
+          _scanResultsController.add(results);
+        });
+        await Future.delayed(const Duration(seconds: 15));
         ble.stopScan();
       }
     }
   }
 
-// This function will help user to connect to BLE devices.
- Future<void> connectToDevice(BluetoothDevice device)async {
-    await device.connect(timeout: const Duration(seconds: 15));
+  Future<void> connectToDevice(BluetoothDevice device) async {
+    if (_connectedDevices[device] ?? false) {
+      await device.disconnect();
+      _connectedDevices[device] = false;
+      notifyListeners();
+    } else {
+      await device.connect(timeout: const Duration(seconds: 15));
+      _connectedDevices[device] = true;
+      notifyListeners();
 
-    device.state.listen((isConnected) {
-      if(isConnected == BluetoothDeviceState.connecting){
-        print("Device connecting to: ${device.name}");
-      }else if(isConnected == BluetoothDeviceState.connected){
-        print("Device connected: ${device.name}");
-      }else{
-        print("Device Disconnected");
-      }
-    });
+      device.state.listen((state) {
+        if (state == BluetoothDeviceState.connected) {
+          _connectedDevices[device] = true;
+        } else {
+          _connectedDevices[device] = false;
+        }
+        notifyListeners();
+      });
+    }
+  }
 
- }
 
-  Stream<List<ScanResult>> get scanResults => ble.scanResults;
+  @override
+  void dispose() {
+    _scanResultsController.close();
+    super.dispose();
+  }
 
+  // Реализуйте метод isConnected
+  bool isConnected(BluetoothDevice device) {
+    return _connectedDevices[device] ?? false;
+  }
 }
