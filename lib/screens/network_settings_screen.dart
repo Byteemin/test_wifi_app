@@ -1,96 +1,44 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import 'package:test_wifi_app/domain/entity/user.dart';
 import 'package:test_wifi_app/domain/service/user_service.dart';
 import 'package:test_wifi_app/widgets/boottom_navigation_widget.dart';
 
-class ViewModelState {
-  final String wifiName;
-  final String wifiPassword;
-  final String deviceName;
-
-  ViewModelState({
-    required this.wifiName,
-    required this.wifiPassword,
-    required this.deviceName,
-  });
-
-  ViewModelState copyWith({
-    String? wifiName,
-    String? wifiPassword,
-    String? deviceName,
-  }) {
-    return ViewModelState(
-      wifiName: wifiName ?? this.wifiName,
-      wifiPassword: wifiPassword ?? this.wifiPassword,
-      deviceName: deviceName ?? this.deviceName,
-    );
-  }
-}
-
 class _ViewModel extends ChangeNotifier {
-  final _userService = UserService();
-  var _state = ViewModelState(
-    wifiName: '',
-    wifiPassword: '',
-    deviceName: '',
-  );
-  ViewModelState get state => _state;
-
-  void loadValue() async {
-    await _userService.initilalize();
-    _updateState();
-  }
+   final UserService _userService = UserService();
+  
+  final TextEditingController wifiNameController = TextEditingController();
+  final TextEditingController wifiPasswordController = TextEditingController();
+  final TextEditingController bluetoothDeviceNameController =
+      TextEditingController();
 
   _ViewModel() {
-    loadValue();
+    _loadText();
   }
 
-  void _updateState() {
-    final user = _userService.user;
-    _state = ViewModelState(
-      wifiName: user.wifiName.toString(),
-      wifiPassword: user.wifiPassword.toString(),
-      deviceName: user.deviceName.toString(),
-    );
-    notifyListeners();
-  }
+  Future<void> _loadText() async {
+        await _userService.initialize();
+
+        // Получаем объект User из UserService
+        final user = _userService.user;
+
+        // Устанавливаем значения в контроллеры TextEditingController
+        wifiNameController.text = user.wifiName;
+        wifiPasswordController.text = user.wifiPassword;
+        bluetoothDeviceNameController.text = user.deviceName;
+    }
 
   Future<void> onSaveButtonPressed() async {
-    try {
-      // Сохраняем текущие настройки пользователя с помощью сервиса пользователя (_userService)
-      _userService.pushUserData(
-        wifiName: _state.wifiName,
-        wifiPassword: _state.wifiPassword,
-        deviceName: _state.deviceName,
-      );
+        // Создаем объект User с данными из контроллеров
+        final user = User(
+            wifiNameController.text,
+            wifiPasswordController.text,
+            bluetoothDeviceNameController.text
+        );
 
-      _updateState();
-    } catch (e) {
-      // Обработка ошибок
-      print('Ошибка при сохранении настроек: $e');
-      // Вы можете добавить дополнительную обработку ошибок, например, уведомление пользователя об ошибке
+        // Сохраняем объект User с помощью UserService
+        await _userService.saveUser(user);
     }
-  }
-
-  void changeDeviceName(String value) {
-    if (_state.deviceName == value) return;
-    _state = _state.copyWith(deviceName: value);
-    notifyListeners();
-  }
-
-  void changeWifiName(String value) {
-    if (_state.wifiName == value) return;
-    _state = _state.copyWith(wifiName: value);
-    notifyListeners();
-  }
-
-  void changeWifiPassword(String value) {
-    if (_state.wifiPassword == value) return;
-    _state = _state.copyWith(wifiPassword: value);
-    notifyListeners();
-  }
 }
 
 class UserSettingsScreen extends StatelessWidget {
@@ -107,15 +55,15 @@ class UserSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _WifiSettingsWidget(),
-              _BluetoothSettingsWidget(),
-              _SaveButtonWidget(),
-            ],
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _WifiSettingsWidget(),
+            _BluetoothSettingsWidget(),
+            _SaveButtonWidget(),
+          ],
         ),
+      ),
       bottomNavigationBar: BoottomNavigationWidget(),
     );
   }
@@ -161,7 +109,7 @@ class _WifiSettingsDataWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final model = context.read<_ViewModel>();
+    final model = context.watch<_ViewModel>();
     return Container(
       margin: const EdgeInsets.only(left: 5.0, right: 16.0),
       decoration: BoxDecoration(
@@ -174,16 +122,16 @@ class _WifiSettingsDataWidget extends StatelessWidget {
       child: Column(
         children: [
           TextField(
+            controller: model.wifiNameController,
             decoration: const InputDecoration(
               labelText: 'Логин',
             ),
-            onChanged: model.changeWifiName,
           ),
           TextField(
+            controller: model.wifiPasswordController,
             decoration: const InputDecoration(
               labelText: 'Пароль',
             ),
-            onChanged: model.changeWifiPassword,
           ),
         ],
       ),
@@ -232,7 +180,7 @@ class _BluetoothSettingsDataWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final model = context.read<_ViewModel>();
+    final model = context.watch<_ViewModel>();
     return Column(
       children: [
         Container(
@@ -247,10 +195,10 @@ class _BluetoothSettingsDataWidget extends StatelessWidget {
           child: Column(
             children: [
               TextField(
+                controller: model.bluetoothDeviceNameController,
                 decoration: const InputDecoration(
                   labelText: 'Имя устройства',
                 ),
-                onChanged: model.changeDeviceName,
               ),
             ],
           ),
@@ -265,7 +213,7 @@ class _SaveButtonWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final model = context.read<_ViewModel>();
+    final model = context.watch<_ViewModel>();
     return ElevatedButton(
       onPressed: model.onSaveButtonPressed,
       child: const Text('Сохранить'),
