@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:test_wifi_app/domain/entity/user.dart';
 import 'package:test_wifi_app/domain/service/user_service.dart';
-import 'package:test_wifi_app/widgets/boottom_navigation_widget.dart';
 
 class _ViewModel extends ChangeNotifier {
-   final UserService _userService = UserService();
-  
+  final UserService _userService = UserService();
+
   final TextEditingController wifiNameController = TextEditingController();
   final TextEditingController wifiPasswordController = TextEditingController();
   final TextEditingController bluetoothDeviceNameController =
@@ -17,28 +16,25 @@ class _ViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadText() async {
-        await _userService.initialize();
+    await _userService.initialize();
 
-        // Получаем объект User из UserService
-        final user = _userService.user;
+    // Получаем объект User из UserService
+    final user = _userService.user;
 
-        // Устанавливаем значения в контроллеры TextEditingController
-        wifiNameController.text = user.wifiName;
-        wifiPasswordController.text = user.wifiPassword;
-        bluetoothDeviceNameController.text = user.deviceName;
-    }
+    // Устанавливаем значения в контроллеры TextEditingController
+    wifiNameController.text = user.wifiName;
+    wifiPasswordController.text = user.wifiPassword;
+    bluetoothDeviceNameController.text = user.deviceName;
+  }
 
   Future<void> onSaveButtonPressed() async {
-        // Создаем объект User с данными из контроллеров
-        final user = User(
-            wifiNameController.text,
-            wifiPasswordController.text,
-            bluetoothDeviceNameController.text
-        );
+    // Создаем объект User с данными из контроллеров
+    final user = User(wifiNameController.text, wifiPasswordController.text,
+        bluetoothDeviceNameController.text);
 
-        // Сохраняем объект User с помощью UserService
-        await _userService.saveUser(user);
-    }
+    // Сохраняем объект User с помощью UserService
+    await _userService.saveUser(user);
+  }
 }
 
 class UserSettingsScreen extends StatelessWidget {
@@ -53,18 +49,15 @@ class UserSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _WifiSettingsWidget(),
-            _BluetoothSettingsWidget(),
-            _SaveButtonWidget(),
-          ],
-        ),
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _WifiSettingsWidget(),
+          _BluetoothSettingsWidget(),
+          _SaveButtonWidget(),
+        ],
       ),
-      bottomNavigationBar: BoottomNavigationWidget(),
     );
   }
 }
