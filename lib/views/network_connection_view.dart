@@ -1,11 +1,65 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:test_wifi_app/blu_controller.dart';
-import 'package:test_wifi_app/widgets/boottom_navigation_widget.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
+class BleController extends ChangeNotifier {
+  FlutterBlue ble = FlutterBlue.instance;
+  final StreamController<List<ScanResult>> _scanResultsController =
+      StreamController<List<ScanResult>>.broadcast();
+  final Map<BluetoothDevice, bool> _connectedDevices = {};
+  Stream<List<ScanResult>> get scanResults => _scanResultsController.stream;
+
+  Future<void> scanDevices() async {
+    if (await Permission.bluetoothScan.request().isGranted) {
+      if (await Permission.bluetoothConnect.request().isGranted) {
+        ble.startScan(timeout: const Duration(seconds: 15));
+        ble.scanResults.listen((results) {
+          _scanResultsController.add(results);
+        });
+        await Future.delayed(const Duration(seconds: 15));
+        ble.stopScan();
+      }
+    }
+  }
+
+  Future<void> connectToDevice(BluetoothDevice device) async {
+    if (_connectedDevices[device] ?? false) {
+      await device.disconnect();
+      _connectedDevices[device] = false;
+      notifyListeners();
+    } else {
+      await device.connect(timeout: const Duration(seconds: 15));
+      _connectedDevices[device] = true;
+      notifyListeners();
+
+      device.state.listen((state) {
+        if (state == BluetoothDeviceState.connected) {
+          _connectedDevices[device] = true;
+        } else {
+          _connectedDevices[device] = false;
+        }
+        notifyListeners();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scanResultsController.close();
+    super.dispose();
+  }
+
+  bool isConnected(BluetoothDevice device) {
+    return _connectedDevices[device] ?? false;
+  }
+}
+
 class NetworkConectionSreen extends StatelessWidget {
   const NetworkConectionSreen({super.key});
+
   static Widget create() {
     return ChangeNotifierProvider(
       create: (_) => BleController(),
@@ -15,19 +69,16 @@ class NetworkConectionSreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _WifiConnectionsWidget(),
-            _BluetoothConnectionsWidget(),
-            SizedBox(height: 10),
-            _ScanButton(),
-          ],
-        ),
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _WifiConnectionsWidget(),
+          _BluetoothConnectionsWidget(),
+          SizedBox(height: 10),
+          _ScanButton(),
+        ],
       ),
-      bottomNavigationBar: BoottomNavigationWidget(),
     );
   }
 }
@@ -99,7 +150,9 @@ class _BlueDeviceWidget extends StatelessWidget {
                   final data = snapshot.data![index];
                   final isConnected = controller.isConnected(data.device);
                   return Card(
-                    color: isConnected ? const Color.fromARGB(255, 176, 245, 178) : null, // Цвет для подключенного устройства
+                    color: isConnected
+                        ? const Color.fromARGB(255, 176, 245, 178)
+                        : null, // Цвет для подключенного устройства
                     elevation: 2,
                     child: ListTile(
                       title: Text(data.device.name),
@@ -127,7 +180,6 @@ class _BlueDeviceWidget extends StatelessWidget {
     );
   }
 }
-
 
 class _ScanButton extends StatelessWidget {
   const _ScanButton();

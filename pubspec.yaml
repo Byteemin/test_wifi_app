@@ -41,6 +41,8 @@ dependencies:
   get: 4.6.6
   permission_handler: 11.3.1
   shared_preferences: 2.2.3
+
+  sliding_clipped_nav_bar: ^3.1.1
   
 dev_dependencies:
   flutter_test:

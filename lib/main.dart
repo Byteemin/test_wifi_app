@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:test_wifi_app/screens/network_settings_screen.dart';
-// import 'package:test_wifi_app/screens/network_settings_screen.dart';
+import 'package:test_wifi_app/main_wrapper.dart';
 
 void main() => runApp(const MyApp());
 
@@ -9,13 +8,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: UserSettingsScreen.create(),
+      home: MainWrapper(),
     );
   }
 }
-
-
-// UserSettingsScreen.create()
-// NetworkConectionSreen.create()
