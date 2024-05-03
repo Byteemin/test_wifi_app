@@ -12,16 +12,14 @@ class _ViewModel extends ChangeNotifier {
       TextEditingController();
 
   _ViewModel() {
-    _loadText();
+    _loaViewModel();
   }
 
-  Future<void> _loadText() async {
+  Future<void> _loaViewModel() async {
     await _userService.initialize();
 
-    // Получаем объект User из UserService
     final user = _userService.user;
 
-    // Устанавливаем значения в контроллеры TextEditingController
     wifiNameController.text = user.wifiName;
     wifiPasswordController.text = user.wifiPassword;
     bluetoothDeviceNameController.text = user.deviceName;

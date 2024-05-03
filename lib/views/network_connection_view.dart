@@ -1,59 +1,80 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:test_wifi_app/domain/service/bluetooth_controller.dart';
+import 'package:test_wifi_app/domain/service/user_service.dart';
 
-class BleController extends ChangeNotifier {
-  FlutterBlue ble = FlutterBlue.instance;
-  final StreamController<List<ScanResult>> _scanResultsController =
-      StreamController<List<ScanResult>>.broadcast();
-  final Map<BluetoothDevice, bool> _connectedDevices = {};
-  Stream<List<ScanResult>> get scanResults => _scanResultsController.stream;
+class _ViewModel extends ChangeNotifier {
+  final BleController bleController;
+  final UserService _userService = UserService();
+
+  List<ScanResult> allDevices = [];
+  List<ScanResult> filteredDevices = [];
+
+  bool _isScanning = false;
+  bool _hasScanned = false;
+
+  // Геттер для проверки, идет ли сканирование
+  bool get isScanning => _isScanning;
+
+  // Геттер для проверки, происходило ли сканирование
+  bool get hasScanned => _hasScanned;
+
+  String bluetoothfilterMask = '';
+
+  _ViewModel(this.bleController) {
+    _loaViewModel();
+  }
+
+  Future<void> _loaViewModel() async {
+    await _userService.initialize();
+
+    final user = _userService.user;
+
+    bluetoothfilterMask = user.deviceName;
+  }
+
+  bool get hasDevices => allDevices.isNotEmpty;
 
   Future<void> scanDevices() async {
-    if (await Permission.bluetoothScan.request().isGranted) {
-      if (await Permission.bluetoothConnect.request().isGranted) {
-        ble.startScan(timeout: const Duration(seconds: 15));
-        ble.scanResults.listen((results) {
-          _scanResultsController.add(results);
-        });
-        await Future.delayed(const Duration(seconds: 15));
-        ble.stopScan();
-      }
-    }
+    _isScanning = true;
+    notifyListeners();
+
+    allDevices.clear();
+    filteredDevices.clear();
+
+    allDevices = await bleController.scanDevices();
+    _applyFilter();
+
+    _hasScanned = true;
+    _isScanning = false;
+
+    notifyListeners();
   }
 
   Future<void> connectToDevice(BluetoothDevice device) async {
-    if (_connectedDevices[device] ?? false) {
-      await device.disconnect();
-      _connectedDevices[device] = false;
-      notifyListeners();
-    } else {
-      await device.connect(timeout: const Duration(seconds: 15));
-      _connectedDevices[device] = true;
-      notifyListeners();
-
-      device.state.listen((state) {
-        if (state == BluetoothDeviceState.connected) {
-          _connectedDevices[device] = true;
-        } else {
-          _connectedDevices[device] = false;
-        }
-        notifyListeners();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _scanResultsController.close();
-    super.dispose();
+    await bleController.connectToDevice(device);
+    notifyListeners();
   }
 
   bool isConnected(BluetoothDevice device) {
-    return _connectedDevices[device] ?? false;
+    return bleController.isConnected(device);
+  }
+
+  void _applyFilter() {
+    if (bluetoothfilterMask.isEmpty) {
+      filteredDevices = allDevices;
+    } else {
+      RegExp regex = RegExp(bluetoothfilterMask, caseSensitive: false);
+
+      filteredDevices = allDevices.where((scanResult) {
+        return regex.hasMatch(scanResult.device.name);
+      }).toList();
+    }
+
+    notifyListeners();
   }
 }
 
@@ -61,8 +82,9 @@ class NetworkConectionSreen extends StatelessWidget {
   const NetworkConectionSreen({super.key});
 
   static Widget create() {
+    final bleController = BleController();
     return ChangeNotifierProvider(
-      create: (_) => BleController(),
+      create: (_) => _ViewModel(bleController),
       child: const NetworkConectionSreen(),
     );
   }
@@ -137,45 +159,59 @@ class _BlueDeviceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BleController>(
-      builder: (context, controller, child) {
-        return StreamBuilder<List<ScanResult>>(
-          stream: controller.scanResults,
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-              return ListView.builder(
-                padding: EdgeInsets.zero,
-                itemCount: snapshot.data!.length,
-                itemBuilder: (context, index) {
-                  final data = snapshot.data![index];
-                  final isConnected = controller.isConnected(data.device);
-                  return Card(
-                    color: isConnected
-                        ? const Color.fromARGB(255, 176, 245, 178)
-                        : null, // Цвет для подключенного устройства
-                    elevation: 2,
-                    child: ListTile(
-                      title: Text(data.device.name),
-                      subtitle: Text(data.device.id.id),
-                      trailing: Text(data.rssi.toString()),
-                      onTap: () {
-                        controller.connectToDevice(data.device);
-                      },
-                    ),
-                  );
-                },
-              );
-            } else {
-              return Center(
-                child: Image.asset(
-                  'assets/images/noScann.png',
-                  height: 150,
-                  width: 150,
+    return Consumer<_ViewModel>(
+      builder: (context, viewModel, child) {
+        // Проверка состояния сканирования
+        if (viewModel.isScanning) {
+          // Если идет сканирование, выводим текст "Идет сканирование"
+          return const Center(
+            child: Text(
+              'Идет сканирование...',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          );
+        } else if (viewModel.hasScanned && viewModel.filteredDevices.isEmpty) {
+          // Если сканирование произошло, но не найдено ни одного устройства
+          return const Center(
+            child: Text(
+              'Устройств с данной маской не найдено',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          );
+        } else if (!viewModel.hasScanned) {
+          // Если сканирование не произошло ни разу, выводим изображение
+          return Center(
+            child: Image.asset(
+              'assets/images/noScann.png',
+              height: 150,
+              width: 150,
+            ),
+          );
+        } else {
+          // Если найдены устройства, выводим список карточек устройств
+          return ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: viewModel.filteredDevices.length,
+            itemBuilder: (context, index) {
+              final scanResult =
+                  viewModel.filteredDevices[index]; // Получаем ScanResult
+              final device = scanResult.device;
+              final isConnected = viewModel.isConnected(device);
+              return Card(
+                color: isConnected
+                    ? const Color.fromARGB(255, 176, 245, 178)
+                    : null,
+                child: ListTile(
+                  title: Text(device.name),
+                  subtitle: Text(device.id.id),
+                  onTap: () {
+                    viewModel.connectToDevice(device);
+                  },
                 ),
               );
-            }
-          },
-        );
+            },
+          );
+        }
       },
     );
   }
@@ -186,9 +222,9 @@ class _ScanButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var viewModel = Provider.of<_ViewModel>(context, listen: false);
     return ElevatedButton(
-      onPressed: () =>
-          Provider.of<BleController>(context, listen: false).scanDevices(),
+      onPressed: () => viewModel.scanDevices(),
       child: const Text("SCAN"),
     );
   }
