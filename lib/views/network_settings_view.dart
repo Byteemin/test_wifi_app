@@ -26,11 +26,9 @@ class _ViewModel extends ChangeNotifier {
   }
 
   Future<void> onSaveButtonPressed() async {
-    // Создаем объект User с данными из контроллеров
     final user = User(wifiNameController.text, wifiPasswordController.text,
         bluetoothDeviceNameController.text);
 
-    // Сохраняем объект User с помощью UserService
     await _userService.saveUser(user);
   }
 }

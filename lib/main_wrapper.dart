@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sliding_clipped_nav_bar/sliding_clipped_nav_bar.dart';
+import 'package:test_wifi_app/domain/service/bluetooth_controller.dart';
 import 'package:test_wifi_app/views/network_connection_view.dart';
 import 'package:test_wifi_app/views/network_data_view.dart';
 import 'package:test_wifi_app/views/network_settings_view.dart';
@@ -15,12 +16,20 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
+  late BleController bleController;
 
-  final List<Widget> _widgetOptions = [
-    const NetworkData(),
-    UserSettingsScreen.create(),
-    NetworkConectionSreen.create(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    bleController = BleController(); // Инициализация BleController
+  }
+
+  @override
+  void dispose() {
+    // // Убедитесь, что вы освобождаете ресурсы, связанные с BleController, при удалении виджета
+    // bleController.dispose();
+    super.dispose();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -30,8 +39,13 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> widgetOptions = [
+      NetworkData.create(bleController),
+      UserSettingsScreen.create(),
+      NetworkConectionSreen.create(bleController),
+    ];
     return Scaffold(
-      body: _widgetOptions[_selectedIndex],
+      body: widgetOptions[_selectedIndex],
       floatingActionButton: _selectedIndex == 2
           ? null // Если мы находимся во вкладке NetworkConectionSreen, не отображаем кнопку
           : FloatingActionButton(
