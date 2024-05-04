@@ -81,8 +81,7 @@ class _ViewModel extends ChangeNotifier {
 class NetworkConectionSreen extends StatelessWidget {
   const NetworkConectionSreen({super.key});
 
-  static Widget create() {
-    final bleController = BleController();
+  static Widget create(BleController bleController) {
     return ChangeNotifierProvider(
       create: (_) => _ViewModel(bleController),
       child: const NetworkConectionSreen(),
