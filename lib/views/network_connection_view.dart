@@ -1,17 +1,22 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
+// ignore_for_file: dead_code
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_blue/flutter_blue.dart';
-import 'package:test_wifi_app/domain/service/bluetooth_controller.dart';
+import 'package:test_wifi_app/domain/entity/bluetooth.dart';
+
+import 'package:test_wifi_app/domain/service/bluetooth_platform_service.dart';
 import 'package:test_wifi_app/domain/service/user_service.dart';
+
 
 class _ViewModel extends ChangeNotifier {
   final BleController bleController;
   final UserService _userService = UserService();
 
-  List<ScanResult> allDevices = [];
-  List<ScanResult> filteredDevices = [];
+  List<BluetoothDevice> allDevices = [];
+  List<BluetoothDevice> filteredDevices = [];
 
   bool _isScanning = false;
   bool _hasScanned = false;
@@ -45,7 +50,7 @@ class _ViewModel extends ChangeNotifier {
     allDevices.clear();
     filteredDevices.clear();
 
-    allDevices = await bleController.scanDevices();
+    allDevices = (await bleController.scanDevices()).cast<BluetoothDevice>();
     _applyFilter();
 
     _hasScanned = true;
@@ -54,14 +59,15 @@ class _ViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> connectToDevice(BluetoothDevice device) async {
-    await bleController.connectToDevice(device);
-    notifyListeners();
-  }
+  // Future<void> connectToDevice() async {
+  //   await bleController.connectToDevice(device);
+  //   notifyListeners();
+  // }
 
-  bool isConnected(BluetoothDevice device) {
-    return bleController.isConnected(device);
-  }
+  // bool isConnected() {
+
+  //   // return bleController.isConnected(device);
+  // }
 
   void _applyFilter() {
     if (bluetoothfilterMask.isEmpty) {
@@ -69,8 +75,8 @@ class _ViewModel extends ChangeNotifier {
     } else {
       RegExp regex = RegExp(bluetoothfilterMask, caseSensitive: false);
 
-      filteredDevices = allDevices.where((scanResult) {
-        return regex.hasMatch(scanResult.device.name);
+      filteredDevices = allDevices.where((device) {
+        return regex.hasMatch(device.name);
       }).toList();
     }
 
@@ -94,7 +100,7 @@ class NetworkConectionSreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _WifiConnectionsWidget(),
+          // _WifiConnectionsWidget(),
           _BluetoothConnectionsWidget(),
           SizedBox(height: 10),
           _ScanButton(),
@@ -104,6 +110,7 @@ class NetworkConectionSreen extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _WifiConnectionsWidget extends StatelessWidget {
   const _WifiConnectionsWidget();
 
@@ -192,19 +199,19 @@ class _BlueDeviceWidget extends StatelessWidget {
             padding: EdgeInsets.zero,
             itemCount: viewModel.filteredDevices.length,
             itemBuilder: (context, index) {
-              final scanResult =
+              final bluetoothDevice  =
                   viewModel.filteredDevices[index]; // Получаем ScanResult
-              final device = scanResult.device;
-              final isConnected = viewModel.isConnected(device);
+              const isConnected = false;
+              // viewModel.isConnected(device);
               return Card(
                 color: isConnected
                     ? const Color.fromARGB(255, 176, 245, 178)
                     : null,
                 child: ListTile(
-                  title: Text(device.name),
-                  subtitle: Text(device.id.id),
+                  title: Text(bluetoothDevice.name),
+                  subtitle: Text(bluetoothDevice.address),
                   onTap: () {
-                    viewModel.connectToDevice(device);
+                    // viewModel.connectToDevice(device);
                   },
                 ),
               );

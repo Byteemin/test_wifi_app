@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sliding_clipped_nav_bar/sliding_clipped_nav_bar.dart';
-import 'package:test_wifi_app/domain/service/bluetooth_controller.dart';
+import 'package:test_wifi_app/domain/service/bluetooth_platform_service.dart';
 import 'package:test_wifi_app/views/network_connection_view.dart';
 import 'package:test_wifi_app/views/network_data_view.dart';
 import 'package:test_wifi_app/views/network_settings_view.dart';
@@ -26,8 +26,6 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   void dispose() {
-    // // Убедитесь, что вы освобождаете ресурсы, связанные с BleController, при удалении виджета
-    // bleController.dispose();
     super.dispose();
   }
 
@@ -47,17 +45,15 @@ class _MainWrapperState extends State<MainWrapper> {
     return Scaffold(
       body: widgetOptions[_selectedIndex],
       floatingActionButton: _selectedIndex == 2
-          ? null // Если мы находимся во вкладке NetworkConectionSreen, не отображаем кнопку
+          ? null
           : FloatingActionButton(
               onPressed: () {
                 setState(() {
-                  _selectedIndex =
-                      2; // Переключиться на вкладку NetworkConectionSreen
+                  _selectedIndex = 2;
                 });
               },
               backgroundColor: Colors.deepPurpleAccent,
-              child: const Icon(
-                  Icons.network_wifi), // Подходящая иконка для подключения
+              child: const Icon(Icons.network_wifi),
             ),
       bottomNavigationBar: SlidingClippedNavBar(
         backgroundColor: Colors.white,
