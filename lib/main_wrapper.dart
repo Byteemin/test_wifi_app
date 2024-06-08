@@ -26,6 +26,7 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   void dispose() {
+    bleController.dispose();
     super.dispose();
   }
 
