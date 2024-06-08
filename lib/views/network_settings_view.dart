@@ -49,7 +49,7 @@ class UserSettingsScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _WifiSettingsWidget(),
+          // _WifiSettingsWidget(),
           _BluetoothSettingsWidget(),
           _SaveButtonWidget(),
         ],

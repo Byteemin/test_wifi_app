@@ -1,56 +1,134 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
-// ignore_for_file: avoid_print
-
-import 'package:flutter/services.dart';
-import 'package:test_wifi_app/domain/entity/bluetooth.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class BleController {
-  static const _bluetoothChannel = MethodChannel('bluetooth_classic_channel');
+  BluetoothDevice? _connectedDevice;
+  BluetoothConnection? _connection;
+  final List<BluetoothDevice> _devicesList = [];
+  final StreamController<List<BluetoothDevice>> _deviceController =
+      StreamController<List<BluetoothDevice>>.broadcast();
 
-  Future<bool> getPromision() async {
-    print('Начало запроса разрешений');
-    bool checkPromision = false;
-    try {
-      checkPromision = await _bluetoothChannel.invokeMethod('getPermission');
-    } on PlatformException catch (e) {
-      print('Ошибка при запросе разрешений: ${e.message}.');
-      return false;
-    }
-    print(checkPromision);
-    return checkPromision;
+  Stream<List<BluetoothDevice>> get devicesStream => _deviceController.stream;
+  BluetoothDevice? get connectedDevice => _connectedDevice;
+
+  StreamSubscription<BluetoothDiscoveryResult>? _discoveryStreamSubscription;
+  Function(String)? onNewMessage;
+
+  void initialize() {
+    FlutterBluetoothSerial.instance.state.then((state) {});
   }
 
-  Future<List<BluetoothDevice>> scanDevices() async {
-    bool hasPermission = await getPromision();
-    if (!hasPermission) {
-      // Обработка отсутствия разрешений
-      return [];
-    }
+  void startDiscovery() {
+    _discoveryStreamSubscription?.cancel();
+    _discoveryStreamSubscription = null;
 
+    _devicesList.clear();
+
+    _discoveryStreamSubscription =
+        FlutterBluetoothSerial.instance.startDiscovery().listen((r) {
+      BluetoothDevice device = r.device;
+      if (!_devicesList.contains(device)) {
+        if (device.name == null || device.name!.isEmpty) {
+          device = BluetoothDevice(
+            address: device.address,
+            name: "Unknown",
+            type: device.type,
+            bondState: device.bondState,
+            isConnected: device.isConnected,
+          );
+        }
+        _devicesList.add(device);
+        _deviceController.add(_devicesList);
+      }
+    });
+  }
+
+  Future<void> connectToDevice(BluetoothDevice device) async {
     try {
-      // Вызываем метод `scanDevices` у кода Kotlin
-      final List<dynamic> devices =
-          await _bluetoothChannel.invokeMethod('scanDevices');
+      _discoveryStreamSubscription?.cancel();
+      _discoveryStreamSubscription = null;
 
-      // Преобразование результата в список объектов `BluetoothDevice`
-        final List<BluetoothDevice> result = devices.map((device) {
-            // Приведение типа к `Map<String, String>`
-            final Map<String, String> deviceMap = Map<String, String>.from(device);
-
-            // Создание экземпляра `BluetoothDevice` с данными из карты
-            return BluetoothDevice(
-                name: deviceMap['name']!,
-                address: deviceMap['address']!,
-            );
-        }).toList();
-
-      print('Найденные устройства: $devices');
-
-      return result;
+      BluetoothConnection connection =
+          await BluetoothConnection.toAddress(device.address);
+      _connectedDevice = device;
+      _connection = connection;
+      _listenForData();
+      if (kDebugMode) {
+        print('Successfully connected to device: ${device.name}');
+      }
     } catch (e) {
-      // Обработка ошибок
-      print('Ошибка при сканировании Bluetooth устройств: $e');
-      return [];
+      if (kDebugMode) {
+        print('Error connecting to device: $e');
+      }
     }
+  }
+
+  void disconnect() {
+    if (_connection != null) {
+      _connection!.finish();
+      _connectedDevice = null;
+      _connection = null;
+    }
+  }
+
+
+
+void _listenForData() {
+  List<int> buffer = []; // Буфер для хранения принятых байтов
+
+  _connection!.input?.listen((Uint8List data) {
+    // Добавляем принятые байты в буфер
+    buffer.addAll(data);
+
+    // Обрабатываем буфер, если накопилось достаточно данных
+    while (buffer.length >= 10) {
+      // Извлекаем первые 10 байтов из буфера
+      List<int> bytes = buffer.sublist(0, 10);
+
+      // Преобразуем байты в строку ASCII
+      String message = ascii.decode(bytes, allowInvalid: true);
+
+      // Вызываем коллбек onNewMessage
+      if (onNewMessage != null) {
+        onNewMessage!(message);
+      }
+
+      // Выводим полученное сообщение
+      if (kDebugMode) {
+        print('Received message: $message');
+      }
+
+      // Удаляем обработанные байты из буфера
+      buffer = buffer.sublist(10);
+    }
+  }).onDone(() {
+    disconnect();
+  });
+}
+
+void sendMessage(String message) async {
+  if (_connection != null && _connection!.isConnected) {
+    try {
+      // Отправляем сообщение как ASCII байты
+      _connection!.output.add(Uint8List.fromList(ascii.encode(message)));
+      await _connection!.output.allSent;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error sending message: $e');
+      }
+    }
+  } else {
+    if (kDebugMode) {
+      print('No connection to send message');
+    }
+  }
+}
+
+
+  void dispose() {
+    _deviceController.close();
+    _discoveryStreamSubscription?.cancel();
   }
 }
