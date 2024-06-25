@@ -1,67 +1,83 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-
 import 'package:provider/provider.dart';
-import 'package:test_wifi_app/domain/service/bluetooth_platform_service.dart';
+import 'package:test_wifi_app/domain/service/bluetooth_service.dart';
 import 'package:test_wifi_app/domain/service/esp_commands.dart';
 
-class _ViewModel extends ChangeNotifier {
-  final BleController _bleController;
+class _ViewModel1 extends ChangeNotifier {
+  final BluetoothController _bleController;
   EspCommands espCommands = EspCommands();
-  List<String> messages = [];
+  final List<String> _messages = [];
 
-  _ViewModel(this._bleController) {
+  List<String> get messages => _messages;
+
+  _ViewModel1(this._bleController) {
     _bleController.initialize();
     _subscribeToMessageStream();
   }
 
-  void sendMessage(String s) {
-    _bleController.sendMessage(s);
-    // addMessage(s);
-  }
-
   void sendCommand(int index) {
-    if (index >= 0 && index < espCommands.commands.length) {
-      sendMessage(espCommands.commands[index]);
+    final List<int> command = EspCommands().commands[index];
+    if (kDebugMode) {
+      print(command);
     }
+    _bleController.sendMessage(command);
   }
 
   void addMessage(String message) {
-    messages.add(message);
-    notifyListeners(); // Уведомляем об изменении списка сообщений
+    if (_messages.length >= 6) {
+      _messages.removeAt(0); // Удаляем самое старое сообщение
+    }
+    _messages.add(message);
+    notifyListeners(); // Уведомляем слушателей об изменении
   }
 
   void _subscribeToMessageStream() {
     _bleController.onNewMessage = (message) {
-      addMessage(message);
+      if (!_isDisposed) {
+        addMessage(message);
+      }
     };
   }
+
+  bool _isDisposed = false;
+
+  bool isConnected() {
+    return _bleController.isConnected();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
+  
 }
 
 class NetworkData extends StatelessWidget {
   const NetworkData({super.key});
 
-  static Widget create(BleController bleController) {
+  static Widget create(BluetoothController bleController) {
     return ChangeNotifierProvider(
-      create: (_) => _ViewModel(bleController),
+      create: (_) => _ViewModel1(bleController),
       child: const NetworkData(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+
     return const Row(
       children: [
         Expanded(
           child: Column(
             children: [
-              // Пространство между верхними и нижними кнопками
               _ComandListWidget(),
-              // Нижняя строка кнопок
               _ButtonHelpWidget(),
             ],
           ),
         ),
-        // Столбик кнопок F1 - F8 справа
         _ButtonFWidget(),
       ],
     );
@@ -75,7 +91,6 @@ class _ComandListWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        // height: 200.0,
         margin: const EdgeInsets.only(left: 5.0, right: 16.0, top: 30.0),
         decoration: BoxDecoration(
           border: Border.all(
@@ -95,7 +110,7 @@ class _ButtonHelpWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = Provider.of<_ViewModel>(context,
+    final viewModel = Provider.of<_ViewModel1>(context,
         listen: false); // Получение экземпляра _ViewModel
 
     return Padding(
@@ -159,7 +174,7 @@ class _ButtonFWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = Provider.of<_ViewModel>(context,
+    final viewModel = Provider.of<_ViewModel1>(context,
         listen: false); // Получение экземпляра _ViewModel
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -239,28 +254,38 @@ class _BlueTerminalWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<_ViewModel>(
+    return Consumer<_ViewModel1>(
       builder: (context, viewModel, child) {
-        if (viewModel.messages.isEmpty) {
-          // Исправляем обращение к списку сообщений
+        if (!viewModel.isConnected()) {
           return Center(
             child: Image.asset(
-              'assets/images/noScann.png',
+              'assets/images/noConnect.png',
+              height: 150,
+              width: 150,
+            ),
+          );
+        } else if (viewModel.messages.isEmpty) {
+          return Center(
+            child: Image.asset(
+              'assets/images/noMsg.png',
               height: 150,
               width: 150,
             ),
           );
         } else {
-          // Если найдены устройства, выводим список сообщений
           return ListView.builder(
             padding: EdgeInsets.zero,
             itemCount: viewModel.messages.length,
             itemBuilder: (context, index) {
-              final message =
-                  viewModel.messages[index]; // Получаем сообщение из списка
+              final message = viewModel.messages[index];
               return Card(
                 child: ListTile(
-                  title: Text(message), // Отображаем сообщение
+                  title: Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 12.0,
+                    ),
+                  ),
                 ),
               );
             },

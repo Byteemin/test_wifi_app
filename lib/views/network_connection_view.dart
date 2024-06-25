@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:test_wifi_app/domain/service/bluetooth_platform_service.dart';
+import 'package:test_wifi_app/domain/service/bluetooth_service.dart';
 import 'package:test_wifi_app/domain/service/user_service.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class _ViewModel extends ChangeNotifier {
-  final BleController bleController;
+  final BluetoothController bleController;
   final UserService _userService = UserService();
 
   List<BluetoothDevice> allDevices = [];
@@ -29,14 +29,19 @@ class _ViewModel extends ChangeNotifier {
 
   void _subscribeToDeviceStream() {
     _deviceStreamSubscription = bleController.devicesStream.listen((devices) {
-      allDevices = devices;
-      _applyFilter();
-      notifyListeners();
+      if (!_isDisposed) {
+        allDevices = devices;
+        _applyFilter();
+        notifyListeners();
+      }
     });
   }
 
+  bool _isDisposed = false;
+
   @override
   void dispose() {
+    _isDisposed = true;
     _deviceStreamSubscription?.cancel();
     super.dispose();
   }
@@ -79,7 +84,7 @@ class _ViewModel extends ChangeNotifier {
 class NetworkConectionSreen extends StatelessWidget {
   const NetworkConectionSreen({super.key});
 
-  static Widget create(BleController bleController) {
+  static Widget create(BluetoothController bleController) {
     return ChangeNotifierProvider(
       create: (_) => _ViewModel(bleController),
       child: const NetworkConectionSreen(),
