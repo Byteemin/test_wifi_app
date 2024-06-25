@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sliding_clipped_nav_bar/sliding_clipped_nav_bar.dart';
-import 'package:test_wifi_app/domain/service/bluetooth_platform_service.dart';
+import 'package:test_wifi_app/domain/service/bluetooth_service.dart';
 import 'package:test_wifi_app/views/network_connection_view.dart';
 import 'package:test_wifi_app/views/network_data_view.dart';
 import 'package:test_wifi_app/views/network_settings_view.dart';
@@ -16,12 +16,12 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _selectedIndex = 0;
-  late BleController bleController;
+  late BluetoothController bleController;
 
   @override
   void initState() {
     super.initState();
-    bleController = BleController(); // Инициализация BleController
+    bleController = BluetoothController(); // Инициализация BleController
   }
 
   @override
