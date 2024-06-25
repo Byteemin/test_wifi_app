@@ -8,9 +8,10 @@ Test WiFi App - это проект на Flutter для конфигурации
 
 ## Скриншоты
 
-![Главный экран](screenshots/connect_view_sceenshot.jpg)
-![Экран подключения](screenshots/data_view_sceenshot.jpg)
-![Экран конфигурации](screenshots/settingw_view_sceenshot.jpg)
+<img src="screenshots/connect_view_sceenshot.jpg" alt="Главный экран" width="300" />
+<img src="screenshots/data_view_sceenshot.jpg" alt="Экран подключения" width="300" />
+<img src="screenshots/settingw_view_sceenshot.jpg" alt="Экран конфигурации" width="300" />
+
 
 ## Начало работы
 
